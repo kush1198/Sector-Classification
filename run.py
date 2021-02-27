@@ -11,9 +11,6 @@ from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from tqdm import tqdm_notebook
 from nltk import word_tokenize
-from pymagnitude import *
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-import textstat
 from utils import print_model_metrics
 import multiprocessing
 import os
@@ -26,7 +23,6 @@ import string
 from sklearn.preprocessing import Normalizer, StandardScaler, RobustScaler, MinMaxScaler, MaxAbsScaler
 from pymagnitude import *
 from nltk.corpus import stopwords 
-from featurization import preprocessing_for_transformers
 from contractions import CONTRACTION_MAP
 from nltk.stem import WordNetLemmatizer
 import pandas as pd
@@ -104,19 +100,32 @@ def main():
     tfidf.fit(xTrain)
     idf_dict = dict(zip(tfidf.get_feature_names(), tfidf.idf_))
 
-    if args.featurization_type==1:
-        train_features, test_features, feature_names = featurization.featurize(args,traindf,testdf,featurization.tfidf_glove,glove,idf_dict)
-    elif args.featurization_type==2:
-        train_features, test_features, feature_names = featurization.featurize_USE(args,traindf,testdf,featurization.USE_Vec)
-    else:
-        train_features, test_features, feature_names = featurization.featurize(args,traindf,testdf,featurization.Glove_Vec,glove,None)
-    
-    
-    xTrain_pad,xTest_pad,yTrain_enc,yTest_enc,embed_matrix,tok=preprocessing_for_lstm(xTrain,xTest,yTrain,yTest,glove,20000,100,128)
-    y_train = np.array(traindf.labels.values)
-    y_test = np.array(testdf.labels.values)
+    if args.run_implementation==1:
+        if args.featurization_type==1:
+            train_features, test_features, feature_names = featurization.featurize(args,traindf,testdf,featurization.tfidf_glove,glove,idf_dict)
+        elif args.featurization_type==2:
+            train_features, test_features, feature_names = featurization.featurize_USE(args,traindf,testdf,featurization.USE_Vec)
+        else:
+            train_features, test_features, feature_names = featurization.featurize(args,traindf,testdf,featurization.Glove_Vec,glove,None)
+        
+        y_train = np.array(traindf.labels.values)
+        y_test = np.array(testdf.labels.values)
+
+        file_names=[('rf.sav','RF'),('lr.sav','LR'),('bdt.sav','BDT'),('svc.sav','SVC'),('xgb.sav','XGB'),('ann.sav','ANN'),('knn.sav','KNN')]
+        for _,name in enumerate(file_names):
+            est=tuning(name[1],train_features,y_train)
+            print(name[1]+": ")
+            print_model_metrics(y_testy_test,y_test_pred=np.array(est.predict(test_features)),verbose=False,return_metrics=True)
+            print("\n")
+            pickle.dump(est,open(name[0],'wb'))
+
+        
+
 
     if args.run_implementation==2:
+        xTrain_pad,xTest_pad,yTrain_enc,yTest_enc,embed_matrix,tok=preprocessing_for_lstm(xTrain,xTest,yTrain,yTest,glove,20000,100,128)
+        y_train = np.array(traindf.labels.values)
+        y_test = np.array(testdf.labels.values)
 
         input_lstm={
             'vocabulary_size':len(tok.word_index)+1,
@@ -131,9 +140,6 @@ def main():
 
         num_epochs = 5
         history = model_lstm.fit(xTrain_pad, yTrain_enc, epochs=num_epochs, validation_data=(xTest_pad, yTest_enc))
-
-
-        # 4 epochs | random_seed=10
         print_model_metrics(y_test=np.array(yTest),y_test_pred=np.array(model_lstm.predict_classes(xTest_pad)),verbose=False,return_metrics=True)
 
         input_CNN={
@@ -150,48 +156,6 @@ def main():
 
         history = model_cnn.fit(xTrain_pad, yTrain_enc, epochs=num_epochs)
         print(print_model_metrics(y_test=np.array(yTest),y_test_pred=np.array(model_cnn.predict_classes(xTest_pad)),verbose=False,return_metrics=True))
-            
-       
-    if args.run_implementation==3:
-        train_dataset,test_datset=preprocessing_for_transformers(final_df)
-        batch_size=32
-
-        train_dataloader = DataLoader(
-            train_dataset,  # The training samples.
-            sampler = RandomSampler(train_dataset), # Select batches randomly
-            batch_size = batch_size # Trains with this batch size.
-        )
-
-        validation_dataloader = DataLoader(
-                    val_dataset, # The validation samples.
-                    sampler = SequentialSampler(val_dataset), # Pull out batches sequentially.
-                    batch_size = batch_size # Evaluate with this batch size.
-                )
-
-        model = BertForSequenceClassification.from_pretrained(
-            "bert-base-uncased", # Use the 12-layer BERT model, with an uncased vocab.
-            num_labels = 5, 
-            output_attentions = False, # Whether the model returns attentions weights.
-            output_hidden_states = False, # Whether the model returns all hidden-states.
-        )
-
-        model.cuda()
-        optimizer = AdamW(model.parameters(),
-                        lr = 2e-5, 
-                        eps = 1e-8 
-                        )
-
-        epochs = 4
-        # Total number of training steps is [number of batches] x [number of epochs]. 
-        # (Note that this is not the same as the number of training samples).
-        total_steps = len(train_dataloader) * epochs
-
-        # Create the learning rate scheduler.
-        scheduler = get_linear_schedule_with_warmup(optimizer, 
-                                                    num_warmup_steps = 0, # Default value in run_glue.py
-                                                    num_training_steps = total_steps)
-
-
 
 
 if __name__ == "__main__":

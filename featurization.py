@@ -21,7 +21,6 @@ tf.compat.v1.disable_eager_execution()
 
 TRANSFORMERS={
     'bert':(BertTokenizer,'bert_base_uncased',)
-    'roberta':(RobertaTokenizer,'roberta_base',),
 }
 
 def Glove_Vec(df,glove_model,idf_dict=None):
@@ -255,72 +254,5 @@ def preprocessing_for_lstm(xTrain,xTest,yTrain,yTest,glove_model,vocabulary_size
             embedding_matrix[i] = embedding_vector
             
     return xTrain_pad,xTest_pad,yTrain_enc,yTest_enc,embedding_matrix,tokenizer
-
-
-def preprocessing_for_transformers(df,transformer_type):
-    ''' Takes in dataset, tokenizes, adds special tokens, pads and finally convert the dataset into Pytorch Datset'''
-    sentences=df.Requirements.values
-    labels=df.labels.values
-
-    print('Loading BERT tokenizer...')
-
-    tokenizer = TOKENIZERS[transformer_type].from_pretrained('bert-base-uncased', do_lower_case=True)
-
-    max_len = 0
-
-    for sent in sentences:
-
-        # Tokenize the text and add `[CLS]` and `[SEP]` tokens.
-        input_ids = tokenizer.encode(sent, add_special_tokens=True)
-
-        # Update the maximum sentence length.
-        max_len = max(max_len, len(input_ids))
-
-    input_ids = []
-    attention_masks = []
-
-    # For every sentence...
-    for sent in sentences:
-        encoded_dict = tokenizer.encode_plus(
-                            sent,                      # Sentence to encode.
-                            add_special_tokens = True, # Add '[CLS]' and '[SEP]'
-                            max_length = 128,           # Pad & truncate all sentences.
-                            pad_to_max_length = True,
-                            return_attention_mask = True,   # Construct attn. masks.
-                            return_tensors = 'pt'   # Return pytorch tensors.
-                    )
-        
-        # Add the encoded sentence to the list.    
-        input_ids.append(encoded_dict['input_ids'])
-        
-        # And its attention mask (simply differentiates padding from non-padding).
-        attention_masks.append(encoded_dict['attention_mask'])
-
-    # Convert the lists into tensors.
-    input_ids = torch.cat(input_ids, dim=0)
-    attention_masks = torch.cat(attention_masks, dim=0)
-    labels = torch.tensor(labels)
-
-    BERT_df = pd.DataFrame(list(zip(input_ids, attention_masks,labels)), columns =['ids', 'mask','labels']) 
-
-    # xTrain_BERT & xTest_BERT are pandas dataframes
-    # yTrain_BERT & yTest_BERT are 1D tensors
-    xTrain_BERT,xTest_BERT,yTrain_BERT,yTest_BERT=split_dataframe(BERT_df,'ids','mask')
-    yTrain_BERT=torch.tensor([a.item() for a in yTrain_BERT])
-    yTest_BERT=torch.tensor([a.item() for a in yTest_BERT])
-
-    # tensors
-    # ids_train & mask_train have shape = ([2521, 128])
-    # ids_test & mask_test have shape = ([445, 128])
-    ids_train=torch.tensor([a.numpy() for a in xTrain_BERT['ids'].values])
-    ids_test=torch.tensor([a.numpy() for a in xTest_BERT['ids'].values])
-    mask_train=torch.tensor([a.numpy() for a in xTrain_BERT['mask'].values])
-    mask_test=torch.tensor([a.numpy() for a in xTest_BERT['mask'].values])
-
-    # We use TensorDataset to obtain the final dataset.
-    train_dataset=TensorDataset(ids_train,mask_train,yTrain_BERT)
-    test_dataset=TensorDataset(ids_test,mask_test,yTest_BERT)
-
-    return train_dataset, test_dataset
 
     
