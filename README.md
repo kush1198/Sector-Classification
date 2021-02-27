@@ -1,7 +1,8 @@
 **To use approach 1 or 2 run:
 **
 ```
-python run.py --dataset DATASET --glove_path GLOVE_PATH --word_dir WORD_DIR --featurization_type FEATURIZATION_TYPE --run_implementation RUN_IMPLEMENTATION
+python run.py --dataset DATASET --glove_path GLOVE_PATH --word_dir WORD_DIR 
+              --featurization_type FEATURIZATION_TYPE --run_implementation RUN_IMPLEMENTATION
 ```
 
 Here,
