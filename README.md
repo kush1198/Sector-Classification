@@ -15,7 +15,7 @@ WORD_DIR --> Path to directory containing all special hand-crafted features, "\s
 
 FEATURIZATION_TYPE --> Type of featurization (neumeric) 0-->Average Glove, 1-->TF-IDF Glove, 2-->USE
 
-RUN_IMPLEMENTATION --> run implementation number? (1/2)
+RUN_IMPLEMENTATION --> run approach number? (1/2)
 
 
 ## To use approach 3 run (In Google colab to train on GPU):
