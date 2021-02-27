@@ -9,7 +9,6 @@ import tensorflow_hub as hub
 from scipy.stats import randint as sp_randint
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
-# We'll use Average Glove here 
 from tqdm import tqdm_notebook
 from nltk import word_tokenize
 from pymagnitude import *
@@ -36,21 +35,13 @@ from transformers import BertForSequenceClassification, AdamW, BertConfig, Rober
 from models import CNN_tf
 from featurization import preprocessing_for_lstm
 from sklearn.preprocessing import LabelEncoder
-#from keras.utils import np_utils
-#from keras.utils.np_utils import to_categorical
-#import tensorflow as tf
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
-#print(tf.__version__)
 from sklearn.feature_extraction import text 
-# This is needed for the iterator over the data
-# But not necessary if you have TF 2.0 installed
-#!pip install tensorflow==2.0.0-beta0
 import featurization
 
 
-# split the dataframe into startified train-test 85:15% 
 def split_dataframe(df,c1,c2,return_vals):
     xtrain, xtest, ytrain, ytest = train_test_split(df.loc[:,[c1,c2]], df.loc[:,'labels'], test_size = 0.15, random_state = 0,stratify=df.loc[:,'labels'])
     traindf=pd.concat([xtrain,ytrain],axis=1)
@@ -60,16 +51,6 @@ def split_dataframe(df,c1,c2,return_vals):
     yTrain=ytrain.values
     yTest=ytest.values
     return (traindf,testdf,xTrain,xTest,yTrain,yTest)
-
-
-#def Glove_Vec1(df,glove):
-#    vectors = []
-#    for title in tqdm_notebook(df.Requirements_clean.values):
-#        vectors.append(np.average(glove.word_vectors[glove.dictionary[word_tokenize(title)]], axis = 0))
-#    return np.array(vectors)
-
-# Now lets create a dict so that for every word in the corpus we have a corresponding IDF value
-# Same as Avg Glove except instead of doing a regular average, we'll use the IDF values as weights.
 
 def main():
     parser = argparse.ArgumentParser()
@@ -115,7 +96,6 @@ def main():
 
     le=LabelEncoder()
     final_df.labels=le.fit_transform(final_df.labels)
-    #print(le.classes_)
 
     traindf,testdf,xTrain,xTest,yTrain,yTest=split_dataframe(final_df,'Requirements','Requirements_clean','Requirements_clean')
 
@@ -133,7 +113,8 @@ def main():
     
     
     xTrain_pad,xTest_pad,yTrain_enc,yTest_enc,embed_matrix,tok=preprocessing_for_lstm(xTrain,xTest,yTrain,yTest,glove,20000,100,128)
-
+    y_train = np.array(traindf.labels.values)
+    y_test = np.array(testdf.labels.values)
 
     if args.run_implementation==2:
 
@@ -146,16 +127,19 @@ def main():
             'seq_length':xTrain_pad.shape[1]
         }
 
-        model_lstm=LSTM_tf(**input_lstm)
-        # You can train the model on xTrain_pad but I am loading the saved/trained model
+        model_lstm=LSTM_tf(**input_dic)
 
-        model_lstm=tf.keras.models.load_model('.\\neural_models\lstm_model')
-        print(print_model_metrics(y_test=np.array(yTest),y_test_pred=np.array(model_lstm.predict_classes(xTest_pad)),verbose=False,return_metrics=True))
+        num_epochs = 5
+        history = model_lstm.fit(xTrain_pad, yTrain_enc, epochs=num_epochs, validation_data=(xTest_pad, yTest_enc))
+
+
+        # 4 epochs | random_seed=10
+        print_model_metrics(y_test=np.array(yTest),y_test_pred=np.array(model_lstm.predict_classes(xTest_pad)),verbose=False,return_metrics=True)
 
         input_CNN={
             'vocabulary_size':len(tok.word_index)+1,
             'embed_size':100,
-            'embedding_matrix':embed_matrix,
+            'embedding_matrix':None,
             'filters':8,
             'output_size':5,
             'pool_size':3,
@@ -163,11 +147,10 @@ def main():
             'seq_length':xTrain_pad.shape[1]
         }
         model_cnn=CNN_tf(**input_CNN)
-        # You can train the model on xTrain_pad but I am loading the saved/trained model
 
-        model_cnn=tf.keras.models.load_model('.\\neural_models\cnn_model')
+        history = model_cnn.fit(xTrain_pad, yTrain_enc, epochs=num_epochs)
         print(print_model_metrics(y_test=np.array(yTest),y_test_pred=np.array(model_cnn.predict_classes(xTest_pad)),verbose=False,return_metrics=True))
-       
+            
        
     if args.run_implementation==3:
         train_dataset,test_datset=preprocessing_for_transformers(final_df)
