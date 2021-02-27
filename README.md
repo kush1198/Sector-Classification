@@ -1,6 +1,8 @@
-To use approach 1 or 2 run:
-
-'''python run.py --dataset DATASET --glove_path GLOVE_PATH --word_dir WORD_DIR --featurization_type FEATURIZATION_TYPE --run_implementation RUN_IMPLEMENTATION'''
+**To use approach 1 or 2 run:
+**
+```
+python run.py --dataset DATASET --glove_path GLOVE_PATH --word_dir WORD_DIR --featurization_type FEATURIZATION_TYPE --run_implementation RUN_IMPLEMENTATION
+```
 
 Here,
 
@@ -15,7 +17,7 @@ FEATURIZATION_TYPE --> Type of featurization (neumeric) 0-->Average Glove, 1-->T
 RUN_IMPLEMENTATION --> run implementation number? (1/2)
 
 
-To use approach 3 run (In Google colab to train on GPU):
-
+**To use approach 3 run (In Google colab to train on GPU):
+**
 https://colab.research.google.com/drive/1COk5MdKlhq4qi8HV4lIdNhwLyrwQeJF8?usp=sharing
 
